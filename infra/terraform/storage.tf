@@ -95,12 +95,12 @@ resource "google_pubsub_topic_iam_member" "gcs_publish" {
 }
 
 resource "google_storage_notification" "raw_finalize" {
-  bucket         = google_storage_bucket.raw.name
-  topic          = google_pubsub_topic.raw_uploads.id
-  payload_format = "JSON_API_V1"
-  event_types    = ["OBJECT_FINALIZE"]
+  bucket             = google_storage_bucket.raw.name
+  topic              = google_pubsub_topic.raw_uploads.id
+  payload_format     = "JSON_API_V1"
+  event_types        = ["OBJECT_FINALIZE"]
   object_name_prefix = "raw/"
-  depends_on     = [google_pubsub_topic_iam_member.gcs_publish]
+  depends_on         = [google_pubsub_topic_iam_member.gcs_publish]
 }
 
 resource "google_pubsub_topic" "raw_uploads_dlq" {

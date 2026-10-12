@@ -9,9 +9,9 @@ resource "google_iam_workload_identity_pool" "github" {
 }
 
 resource "google_iam_workload_identity_pool_provider" "github" {
-  workload_identity_pool_id         = google_iam_workload_identity_pool.github.workload_identity_pool_id
+  workload_identity_pool_id          = google_iam_workload_identity_pool.github.workload_identity_pool_id
   workload_identity_pool_provider_id = "${var.prefix}-github"
-  display_name                      = "GitHub"
+  display_name                       = "GitHub"
 
   attribute_mapping = {
     "google.subject"       = "assertion.sub"
@@ -32,12 +32,13 @@ resource "google_service_account" "github_deploy" {
   display_name = "GitHub Actions deploy (CI/CD)"
 }
 
-# Only workflow runs on var.deploy_ref (e.g. refs/heads/main) may impersonate the
-# deploy service account — PRs and other branches authenticate but can't deploy.
+# Any workflow run in this repo can impersonate the deploy SA (GCP has no branch
+# concept to restrict on) — deploy.yml itself only runs on pushes to main or
+# workflow_dispatch, so that's where the real restriction lives.
 resource "google_service_account_iam_member" "github_deploy_wif" {
   service_account_id = google_service_account.github_deploy.name
-  role                = "roles/iam.workloadIdentityUser"
-  member              = "principalSet://iam.googleapis.com/projects/${data.google_project.this.number}/locations/global/workloadIdentityPools/${google_iam_workload_identity_pool.github.workload_identity_pool_id}/attribute.repository/${var.github_repo}"
+  role               = "roles/iam.workloadIdentityUser"
+  member             = "principalSet://iam.googleapis.com/projects/${data.google_project.this.number}/locations/global/workloadIdentityPools/${google_iam_workload_identity_pool.github.workload_identity_pool_id}/attribute.repository/${var.github_repo}"
 }
 
 resource "google_project_iam_member" "github_deploy_roles" {
@@ -58,8 +59,8 @@ resource "google_service_account_iam_member" "github_deploy_act_as" {
     google_service_account.transcoder.name,
   ])
   service_account_id = each.value
-  role                = "roles/iam.serviceAccountUser"
-  member              = "serviceAccount:${google_service_account.github_deploy.email}"
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:${google_service_account.github_deploy.email}"
 }
 
 resource "google_storage_bucket_iam_member" "github_deploy_web" {
