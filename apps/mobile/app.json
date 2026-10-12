@@ -1,0 +1,44 @@
+{
+  "expo": {
+    "name": "Makers BTS",
+    "slug": "artisan-bts-marketplace",
+    "scheme": "makersbts",
+    "version": "0.1.0",
+    "orientation": "default",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "android": {
+      "package": "com.artisan.bts",
+      "edgeToEdgeEnabled": true,
+      "permissions": [
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.FOREGROUND_SERVICE_DATA_SYNC"
+      ]
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "react-native-video",
+        {
+          "enableAndroidPictureInPicture": false,
+          "androidExtensions": {
+            "useExoplayerHls": true,
+            "useExoplayerDash": true,
+            "useExoplayerSmoothStreaming": false
+          }
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "apiBaseUrl": "http://localhost:8080",
+      "razorpayKeyId": "rzp_test_replace_me"
+    }
+  }
+}

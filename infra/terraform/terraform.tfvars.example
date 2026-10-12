@@ -1,0 +1,8 @@
+project_id       = "your-gcp-project"
+region           = "asia-south1"
+api_domain       = "api.example.com"
+media_domain     = "media.example.com"
+web_domain       = "app.example.com"
+api_image        = "asia-south1-docker.pkg.dev/your-gcp-project/artisan/api:latest"
+transcoder_image = "asia-south1-docker.pkg.dev/your-gcp-project/artisan/transcoder:latest"
+razorpay_key_id  = "rzp_test_xxx"

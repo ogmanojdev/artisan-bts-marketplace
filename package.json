@@ -1,0 +1,25 @@
+{
+  "name": "artisan-bts-marketplace",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Marketplace where artisans sell handmade products alongside behind-the-scenes process videos, tuned for sub-50 kbps playback.",
+  "workspaces": [
+    "apps/*",
+    "services/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "app": "npm --workspace apps/mobile run start",
+    "app:web": "npm --workspace apps/mobile run web",
+    "app:android": "npm --workspace apps/mobile run android",
+    "api:dev": "npm --workspace services/api run dev",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.0"
+  }
+}

@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: artisan
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/artisan
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm install --no-audit --no-fund --ignore-scripts
+      - run: npm --workspace packages/shared run typecheck
+      - run: npm --workspace services/api run typecheck
+      - run: npm --workspace services/api test
+      - run: npm --workspace services/api run migrate
+      - run: npm --workspace services/api run build
+      - run: npm --workspace services/transcoder run typecheck
+      - run: npm --workspace services/transcoder run build
+
+  app:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm install --no-audit --no-fund
+      - run: npx expo install --check
+        working-directory: apps/mobile
+      - run: npm --workspace apps/mobile run typecheck
+      - run: npm --workspace apps/mobile run build:web
+      - name: Report web bundle size (budget matters at 50 kbps)
+        run: du -sh apps/mobile/dist && find apps/mobile/dist -name "*.js" -exec gzip -c {} \; | wc -c | awk '{printf "gzipped JS: %.0f KB\n", $1/1024}'
+
+  terraform:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra/terraform
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - run: terraform fmt -check -recursive
+      - run: terraform init -backend=false
+      - run: terraform validate
