@@ -48,7 +48,8 @@ jobs:
       - run: npm --workspace apps/mobile run typecheck
       - run: npm --workspace apps/mobile run build:web
       - name: Report web bundle size (budget matters at 50 kbps)
-        run: du -sh apps/mobile/dist && find apps/mobile/dist -name "*.js" -exec gzip -c {} \; | wc -c | awk '{printf "gzipped JS: %.0f KB\n", $1/1024}'
+        run: |
+          du -sh apps/mobile/dist && find apps/mobile/dist -name "*.js" -exec gzip -c {} \; | wc -c | awk '{printf "gzipped JS: %.0f KB\n", $1/1024}'
 
   terraform:
     runs-on: ubuntu-latest

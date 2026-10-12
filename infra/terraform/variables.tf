@@ -12,6 +12,12 @@ variable "prefix" {
   default = "artisan"
 }
 
+variable "github_repo" {
+  type        = string
+  description = "owner/repo allowed to assume the GitHub Actions deploy service account"
+  default     = "ogmanojdev/artisan-bts-marketplace"
+}
+
 variable "api_domain" {
   type        = string
   description = "e.g. api.example.com"

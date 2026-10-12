@@ -26,3 +26,15 @@ output "artifact_registry" {
 output "cloudsql_connection_name" {
   value = google_sql_database_instance.pg.connection_name
 }
+
+# Copy these into the repo's Actions variables (gh variable set), see
+# .github/workflows/deploy.yml for the full list it expects.
+output "gha_workload_identity_provider" {
+  description = "-> GCP_WIF_PROVIDER"
+  value       = google_iam_workload_identity_pool_provider.github.name
+}
+
+output "gha_deploy_service_account" {
+  description = "-> GCP_DEPLOY_SA"
+  value       = google_service_account.github_deploy.email
+}

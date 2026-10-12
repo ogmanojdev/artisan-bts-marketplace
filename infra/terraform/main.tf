@@ -10,6 +10,8 @@ locals {
     "compute.googleapis.com",
     "identitytoolkit.googleapis.com",
     "iamcredentials.googleapis.com",
+    "iam.googleapis.com",
+    "sts.googleapis.com",
   ]
   web_origins = ["https://${var.web_domain}", "http://localhost:8081"]
   # Deterministic Cloud Run URL: used as the OIDC audience on both sides of internal calls.
