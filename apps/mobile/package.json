@@ -7,7 +7,7 @@
     "start": "expo start",
     "android": "expo run:android",
     "web": "expo start --web",
-    "build:web": "expo export --platform web",
+    "build:web": "expo export --platform web && node scripts/patch-web-export.mjs",
     "typecheck": "tsc --noEmit -p .",
     "lint": "expo lint"
   },

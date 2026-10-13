@@ -34,7 +34,8 @@
       ]
     ],
     "experiments": {
-      "typedRoutes": true
+      "typedRoutes": true,
+      "baseUrl": "/artisan-bts-marketplace-artisan-web"
     },
     "extra": {
       "apiBaseUrl": "https://artisan-api-54imdzll3a-el.a.run.app",
