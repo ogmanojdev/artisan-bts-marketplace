@@ -38,6 +38,7 @@ export default function SearchScreen() {
           onChangeText={setInput}
           onSubmitEditing={() => setQ(input.trim())}
           placeholder="Search pottery, handloom, woodwork…"
+          placeholderTextColor="#888780"
           returnKeyType="search"
           style={styles.input}
           accessibilityLabel="Search products"
@@ -86,7 +87,7 @@ export default function SearchScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, paddingTop: 12, maxWidth: 1400, width: "100%", alignSelf: "center" },
   searchRow: { flexDirection: "row", gap: 8 },
-  input: { flex: 1, borderWidth: 1, borderColor: "#d3d1c7", borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 16 },
+  input: { flex: 1, borderWidth: 1, borderColor: "#d3d1c7", borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, fontSize: 16, color: "#2C2C2A" },
   sellBtn: { backgroundColor: "#534AB7", borderRadius: 10, paddingHorizontal: 16, justifyContent: "center" },
   sellText: { color: "#fff", fontWeight: "600" },
   tags: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginVertical: 12 },

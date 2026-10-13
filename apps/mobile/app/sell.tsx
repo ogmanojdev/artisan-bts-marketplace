@@ -109,7 +109,7 @@ function Field(props: { label: string; value: string; onChange: (v: string) => v
 }
 
 const styles = StyleSheet.create({
-  input: { borderWidth: 1, borderColor: "#d3d1c7", borderRadius: 10, padding: 12, fontSize: 16 },
+  input: { borderWidth: 1, borderColor: "#d3d1c7", borderRadius: 10, padding: 12, fontSize: 16, color: "#2C2C2A" },
   secondary: { borderWidth: 1, borderColor: "#534AB7", borderRadius: 10, padding: 14, alignItems: "center" },
   secondaryText: { color: "#3C3489" },
   primary: { backgroundColor: "#534AB7", borderRadius: 10, padding: 14, alignItems: "center" },

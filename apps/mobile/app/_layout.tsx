@@ -18,7 +18,8 @@ const queryClient = new QueryClient({
 export default function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
-      <StatusBar style="auto" />
+      {/* Screens are always light, so keep the status bar icons dark even when the phone is in dark mode. */}
+      <StatusBar style="dark" />
       <Stack screenOptions={{ headerTitleStyle: { fontWeight: "600" } }}>
         <Stack.Screen name="index" options={{ title: "Discover handmade" }} />
         <Stack.Screen name="product/[id]" options={{ title: "" }} />
