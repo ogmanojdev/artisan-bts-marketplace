@@ -68,3 +68,11 @@ resource "google_storage_bucket_iam_member" "github_deploy_web" {
   role   = "roles/storage.objectAdmin"
   member = "serviceAccount:${google_service_account.github_deploy.email}"
 }
+
+# `gcloud storage rsync` reads the destination bucket's metadata (storage.buckets.get),
+# which objectAdmin doesn't include.
+resource "google_storage_bucket_iam_member" "github_deploy_web_bucket" {
+  bucket = google_storage_bucket.web.name
+  role   = "roles/storage.legacyBucketReader"
+  member = "serviceAccount:${google_service_account.github_deploy.email}"
+}
