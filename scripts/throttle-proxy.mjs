@@ -10,7 +10,9 @@
  *
  * The cap is one shared budget for all downstream bytes, so it behaves like a single slow link.
  * Uploads are not limited. Keys while running:  t = toggle the cap,  q = quit.
+ * Chrome can use the same proxy:  chrome --proxy-server=http://127.0.0.1:8888
  */
+import { appendFileSync } from "node:fs";
 import http from "node:http";
 import net from "node:net";
 
@@ -21,6 +23,8 @@ const arg = (name, fallback) => {
 const PORT = arg("port", 8888);
 const LIMIT_KBPS = arg("kbps", 48);
 const TICK_MS = 100;
+/** Optional `--log <file>`: one JSON line per second with the measured downstream rate. */
+const LOG_FILE = process.argv.includes("--log") ? process.argv[process.argv.indexOf("--log") + 1] : null;
 
 let capped = true;
 let sentThisSecond = 0;
@@ -73,11 +77,17 @@ setInterval(() => {
 setInterval(() => {
   const kbps = (sentThisSecond * 8) / 1000;
   sentThisSecond = 0;
+  if (LOG_FILE) appendFileSync(LOG_FILE, `${JSON.stringify({ t: Date.now(), kbps, capped })}\n`);
   const bar = "#".repeat(Math.min(40, Math.round((kbps / LIMIT_KBPS) * 20)));
   process.stdout.write(`\r  down ${kbps.toFixed(1).padStart(7)} kbps  ${capped ? `cap ${LIMIT_KBPS} kbps` : "cap OFF    "}  ${bar.padEnd(40)}`);
 }, 1000);
 
 const server = http.createServer((req, res) => {
+  // Control from another terminal:  curl http://127.0.0.1:8888/cap/on  (or /cap/off)
+  if (req.url === "/cap/on" || req.url === "/cap/off") {
+    capped = req.url === "/cap/on";
+    return res.end(`cap ${capped ? "on" : "off"}\n`);
+  }
   // Plain-HTTP proxying (absolute-URI requests).
   const url = new URL(req.url);
   const upstream = http.request(

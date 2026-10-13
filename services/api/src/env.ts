@@ -12,8 +12,9 @@ const Env = z.object({
   /** Comma-separated web origins allowed to call the API and upload to GCS. */
   ALLOWED_ORIGINS: z.string().default("http://localhost:8081"),
   RAZORPAY_KEY_ID: z.string().default(""),
-  RAZORPAY_KEY_SECRET: z.string().default(""),
-  RAZORPAY_WEBHOOK_SECRET: z.string().default(""),
+  // Trimmed: secrets added with `echo … | gcloud secrets versions add` carry a trailing newline.
+  RAZORPAY_KEY_SECRET: z.string().trim().default(""),
+  RAZORPAY_WEBHOOK_SECRET: z.string().trim().default(""),
   /** Audience for OIDC tokens on internal Pub/Sub push endpoints (the API's own URL). */
   INTERNAL_AUDIENCE: z.string().default(""),
   PUBSUB_PUSH_SA: z.string().default(""),
