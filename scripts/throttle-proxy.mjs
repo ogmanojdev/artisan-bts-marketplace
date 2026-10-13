@@ -11,6 +11,11 @@
  * The cap is one shared budget for all downstream bytes, so it behaves like a single slow link.
  * Uploads are not limited. Keys while running:  t = toggle the cap,  q = quit.
  * Chrome can use the same proxy:  chrome --proxy-server=http://127.0.0.1:8888
+ *
+ * Upstream connections are capped at `--max-concurrent` (default 4) and queued beyond that.
+ * Without this, a player that opens many segment requests at once (e.g. Shaka's ABR prefetch)
+ * divides the shared budget so thin per-connection that even the TLS handshake response stalls
+ * long enough for the origin to reset it — playback fails outright instead of just loading slowly.
  */
 import { appendFileSync } from "node:fs";
 import http from "node:http";
@@ -22,6 +27,7 @@ const arg = (name, fallback) => {
 };
 const PORT = arg("port", 8888);
 const LIMIT_KBPS = arg("kbps", 48);
+const MAX_CONCURRENT = arg("max-concurrent", 4);
 const TICK_MS = 100;
 /** Optional `--log <file>`: one JSON line per second with the measured downstream rate. */
 const LOG_FILE = process.argv.includes("--log") ? process.argv[process.argv.indexOf("--log") + 1] : null;
@@ -31,17 +37,46 @@ let sentThisSecond = 0;
 /** Downstream queues, one per open connection. */
 const flows = new Set();
 
-function throttle(upstream, client) {
+/** Gate upstream connection attempts so a burst of requests can't starve each other's TLS handshake. */
+let activeConnections = 0;
+const connectQueue = [];
+function withSlot(run) {
+  const entry = { run, cancelled: false };
+  if (activeConnections < MAX_CONCURRENT) {
+    activeConnections++;
+    run();
+  } else {
+    connectQueue.push(entry);
+  }
+  return entry;
+}
+function releaseSlot() {
+  activeConnections--;
+  let next;
+  do {
+    next = connectQueue.shift();
+  } while (next?.cancelled);
+  if (next) {
+    activeConnections++;
+    next.run();
+  }
+}
+
+function throttle(upstream, client, onClose) {
   const flow = { chunks: [], upstream, client };
   flows.add(flow);
   upstream.on("data", (chunk) => {
     flow.chunks.push(chunk);
     upstream.pause(); // back-pressure: read more only once this chunk has drained
   });
+  let closed = false;
   const close = () => {
+    if (closed) return;
+    closed = true;
     flows.delete(flow);
     upstream.destroy();
     client.destroy();
+    onClose?.();
   };
   upstream.on("end", () => (flow.ended = true));
   upstream.on("error", close);
@@ -90,27 +125,51 @@ const server = http.createServer((req, res) => {
   }
   // Plain-HTTP proxying (absolute-URI requests).
   const url = new URL(req.url);
-  const upstream = http.request(
-    { host: url.hostname, port: url.port || 80, path: url.pathname + url.search, method: req.method, headers: req.headers },
-    (up) => {
-      res.writeHead(up.statusCode ?? 502, up.headers);
-      throttle(up, res);
-    },
-  );
-  upstream.on("error", () => res.writeHead(502).end());
-  req.pipe(upstream);
+  let released = false;
+  const release = () => {
+    if (released) return;
+    released = true;
+    releaseSlot();
+  };
+  const queued = withSlot(() => {
+    const upstream = http.request(
+      { host: url.hostname, port: url.port || 80, path: url.pathname + url.search, method: req.method, headers: req.headers },
+      (up) => {
+        res.writeHead(up.statusCode ?? 502, up.headers);
+        throttle(up, res, release);
+      },
+    );
+    upstream.on("error", () => {
+      res.writeHead(502).end();
+      release();
+    });
+    req.pipe(upstream);
+  });
+  res.on("close", () => (queued.cancelled = true));
 });
 
 // HTTPS: tunnel the TLS stream and meter the bytes coming back.
 server.on("connect", (req, client, head) => {
   const [host, port] = req.url.split(":");
-  const upstream = net.connect(Number(port) || 443, host, () => {
-    client.write("HTTP/1.1 200 Connection Established\r\n\r\n");
-    if (head.length) upstream.write(head);
-    client.pipe(upstream);
-    throttle(upstream, client);
+  let released = false;
+  const release = () => {
+    if (released) return;
+    released = true;
+    releaseSlot();
+  };
+  const queued = withSlot(() => {
+    const upstream = net.connect(Number(port) || 443, host, () => {
+      client.write("HTTP/1.1 200 Connection Established\r\n\r\n");
+      if (head.length) upstream.write(head);
+      client.pipe(upstream);
+      throttle(upstream, client, release);
+    });
+    upstream.on("error", () => {
+      client.destroy();
+      release();
+    });
   });
-  upstream.on("error", () => client.destroy());
+  client.on("close", () => (queued.cancelled = true));
 });
 
 server.listen(PORT, "127.0.0.1", () => {
