@@ -46,7 +46,7 @@ resource "google_cloud_run_v2_service" "api" {
       }
       env {
         name  = "MEDIA_BASE_URL"
-        value = "https://${var.media_domain}"
+        value = local.media_base_url
       }
       env {
         name  = "TRANSCODE_JOB_NAME"

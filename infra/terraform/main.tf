@@ -13,7 +13,13 @@ locals {
     "iam.googleapis.com",
     "sts.googleapis.com",
   ]
-  web_origins = ["https://${var.web_domain}", "http://localhost:8081"]
+  # With the edge (LB+CDN) disabled, fall back to the buckets' own public GCS URLs
+  # so the app still works end to end — just without a custom domain or caching at
+  # the edge. Flip enable_edge = true (and point DNS at the lb_ip output) later.
+  web_base_url   = var.enable_edge ? "https://${var.web_domain}" : "https://storage.googleapis.com/${var.project_id}-${var.prefix}-web"
+  media_base_url = var.enable_edge ? "https://${var.media_domain}" : "https://storage.googleapis.com/${var.project_id}-${var.prefix}-media"
+
+  web_origins = [local.web_base_url, "http://localhost:8081"]
   # Deterministic Cloud Run URL: used as the OIDC audience on both sides of internal calls.
   api_audience = "https://${var.prefix}-api-${data.google_project.this.number}.${var.region}.run.app"
 }

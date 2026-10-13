@@ -52,6 +52,19 @@ variable "db_tier" {
   default = "db-custom-1-3840"
 }
 
+variable "enable_edge" {
+  type        = bool
+  default     = true
+  description = <<-EOT
+    Whether to create the global HTTPS Load Balancer, Cloud CDN, Cloud Armor and
+    managed SSL cert (edge.tf) for the api/media/web custom domains. Set false for
+    a cost-conscious demo/dev deploy: the API and web/media buckets are then
+    reached directly over Cloud Run's and GCS's own HTTPS URLs instead, which
+    avoids the LB's fixed per-hour forwarding-rule + Cloud Armor charges
+    (roughly $25-35/month) and the managed cert's DNS-propagation wait.
+  EOT
+}
+
 variable "transcoder_cpu" {
   type    = string
   default = "8"

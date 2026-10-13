@@ -1,6 +1,14 @@
 output "lb_ip" {
-  description = "Point A records for the api, media and web domains here."
-  value       = google_compute_global_address.lb.address
+  description = "Point A records for the api, media and web domains here. Null when enable_edge = false."
+  value       = var.enable_edge ? google_compute_global_address.lb[0].address : null
+}
+
+output "web_url" {
+  value = local.web_base_url
+}
+
+output "media_url" {
+  value = local.media_base_url
 }
 
 output "api_run_url" {
