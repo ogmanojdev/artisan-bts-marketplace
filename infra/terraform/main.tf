@@ -111,7 +111,8 @@ resource "google_sql_database_instance" "pg" {
   region           = var.region
   settings {
     tier              = var.db_tier
-    availability_type = "ZONAL" # switch to REGIONAL for production HA
+    edition           = "ENTERPRISE" # ENTERPRISE_PLUS (this project's default) only accepts db-perf-optimized-* tiers
+    availability_type = "ZONAL"      # switch to REGIONAL for production HA
     disk_autoresize   = true
     backup_configuration {
       enabled                        = true
