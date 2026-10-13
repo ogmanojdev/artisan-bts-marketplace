@@ -19,7 +19,11 @@ locals {
   web_base_url   = var.enable_edge ? "https://${var.web_domain}" : "https://storage.googleapis.com/${var.project_id}-${var.prefix}-web"
   media_base_url = var.enable_edge ? "https://${var.media_domain}" : "https://storage.googleapis.com/${var.project_id}-${var.prefix}-media"
 
-  web_origins = [local.web_base_url, "http://localhost:8081"]
+  # CORS/ALLOWED_ORIGINS match on scheme+host only (no path) — every bucket served
+  # directly off storage.googleapis.com shares that one origin, unlike web_base_url
+  # above which needs the bucket name in the path to link to a specific page/object.
+  web_origin  = var.enable_edge ? "https://${var.web_domain}" : "https://storage.googleapis.com"
+  web_origins = [local.web_origin, "http://localhost:8081"]
   # Deterministic Cloud Run URL: used as the OIDC audience on both sides of internal calls.
   api_audience = "https://${var.prefix}-api-${data.google_project.this.number}.${var.region}.run.app"
 }
