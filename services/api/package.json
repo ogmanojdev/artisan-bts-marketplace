@@ -4,10 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/server.ts",
+    "dev": "tsx watch --env-file-if-exists=.env src/server.ts",
     "build": "esbuild src/server.ts --bundle --platform=node --target=node22 --format=esm --outfile=dist/server.js --packages=external --alias:@artisan/shared=../../packages/shared/src/index.ts",
     "start": "node dist/server.js",
-    "migrate": "tsx src/migrate.ts",
+    "migrate": "tsx --env-file-if-exists=.env src/migrate.ts",
     "typecheck": "tsc --noEmit -p .",
     "test": "vitest run"
   },

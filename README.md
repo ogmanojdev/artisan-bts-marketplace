@@ -54,21 +54,32 @@ Player settings:
 
 ## Run locally
 
-Requires Node 22 and Docker. FFmpeg is only needed to run the transcoder locally.
+Requires Node 22 and Docker. The whole flow runs offline: upload, transcode, search, playback, order.
 
 ```bash
 npm install
-docker compose up -d                            # Postgres 16
-cp services/api/.env.example services/api/.env  # DEV_AUTH=true for local tokens
+docker compose up -d                            # Postgres 16 + fake-gcs-server (raw and media buckets)
+cp services/api/.env.example services/api/.env  # DEV_AUTH=true, buckets on the emulator
 npm --workspace services/api run migrate
 npm run api:dev                                 # http://localhost:8080
+npm run local:media                             # http://localhost:4443, transcodes each finished upload
 
-cd apps/mobile && npx expo install --fix        # align native module versions with the Expo SDK
-npm run web                                     # Chrome
-npm run android                                 # device/emulator (dev build; react-native-video is native)
+# apps/mobile/.env.local:
+#   EXPO_PUBLIC_API_BASE_URL=http://localhost:8080
+#   EXPO_PUBLIC_DEV_AUTH=true
+npm run app:web                                 # Chrome, http://localhost:8081
+npm run app:android                             # device/emulator (dev build; react-native-video is native)
 ```
 
-With `DEV_AUTH=true`, the API accepts `Authorization: Bearer dev:<uid>:<artisan|buyer>`. Sign-in uses Identity Platform (phone OTP + Google); the seam is `apps/mobile/src/auth.ts`.
+What stands in for GCP locally:
+
+| On GCP | Locally |
+|---|---|
+| Raw and media buckets, Cloud CDN | fake-gcs-server behind `scripts/local-media.mjs` on `:4443` |
+| `OBJECT_FINALIZE` → Pub/Sub → API → Cloud Run Job | `local-media.mjs` runs the same transcoder image with `docker compose run` |
+| Razorpay checkout + webhook | With no Razorpay keys, the API confirms the order itself (`/v1/dev/orders/:id/pay`) |
+
+With `DEV_AUTH=true`, the API accepts `Authorization: Bearer dev:<uid>:<artisan|buyer>`, and the app sends a fixed demo-user token when `EXPO_PUBLIC_DEV_AUTH=true`. Sign-in uses Identity Platform (phone OTP + Google); the seam is `apps/mobile/src/auth.ts`.
 
 Note: `react-native-video` and `react-native-razorpay` are native modules. They need an Expo development build (`expo run:android` or EAS Build), not Expo Go.
 

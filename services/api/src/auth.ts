@@ -45,7 +45,8 @@ const oidc = new OAuth2Client();
 
 /** Pub/Sub push endpoints: accept only OIDC tokens minted for our push service account. */
 export async function requirePubSubPush(req: FastifyRequest, reply: FastifyReply) {
-  if (env.DEV_AUTH === "true") return;
+  // Local only (no audience configured). A deployed API keeps the OIDC check even with DEV_AUTH on.
+  if (env.DEV_AUTH === "true" && !env.INTERNAL_AUDIENCE) return;
   const token = req.headers.authorization?.replace(/^Bearer /, "");
   if (!token) return reply.code(401).send();
   try {

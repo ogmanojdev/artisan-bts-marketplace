@@ -1,4 +1,8 @@
 # Local backend dependencies.  docker compose up -d
+#
+# LOCAL_HOST is the host name the app (browser / Android emulator) uses to reach this machine.
+# Leave it unset for Chrome on this machine; set it to the LAN IP when testing from an emulator
+# or a phone, so uploads and playback go through the device's (throttled) network.
 services:
   postgres:
     image: postgres:16
@@ -8,5 +12,37 @@ services:
     ports: ["5432:5432"]
     volumes: [pgdata:/var/lib/postgresql/data]
 
+  # Stands in for the raw and media GCS buckets: resumable uploads in, public segment reads out.
+  gcs:
+    image: fsouza/fake-gcs-server:latest
+    command:
+      - -scheme=http
+      - -port=4443
+      - -backend=filesystem
+      - -filesystem-root=/storage
+      - -external-url=http://${LOCAL_HOST:-localhost}:4443
+      - -public-host=${LOCAL_HOST:-localhost}:4443
+    # Clients use :4443, which is scripts/local-media.mjs proxying to this port.
+    ports: ["4444:4443"]
+    volumes: [gcsdata:/storage]
+
+  # Same image as the Cloud Run Job. Started once per upload by scripts/local-media.mjs:
+  #   docker compose run --rm -e PRODUCT_ID=… -e RAW_OBJECT=… transcoder
+  transcoder:
+    profiles: [jobs]
+    user: root # the emulator writes objects as root-only files
+    build:
+      context: .
+      dockerfile: services/transcoder/Dockerfile
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/artisan
+      STORAGE_EMULATOR_HOST: http://gcs:4443
+      MEDIA_BUCKET: artisan-media
+      RAW_MOUNT: /gcs/artisan-raw
+      MAX_RETRIES: "0"
+    volumes: [gcsdata:/gcs:ro]
+    depends_on: [postgres, gcs]
+
 volumes:
   pgdata:
+  gcsdata:

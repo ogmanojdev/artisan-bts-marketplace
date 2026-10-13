@@ -5,6 +5,11 @@
  *
  * Kept as a tiny module so screens never depend on a specific auth SDK.
  */
+import { config } from "./config";
+
+/** Sign-in is out of scope: with dev auth, one demo user both lists and buys (`dev:<uid>:<role>`). */
+const DEV_TOKEN = "dev:demo-user:artisan";
+
 let currentToken: string | null = null;
 
 export function setIdToken(token: string | null) {
@@ -12,5 +17,5 @@ export function setIdToken(token: string | null) {
 }
 
 export async function getIdToken(): Promise<string | null> {
-  return currentToken;
+  return currentToken ?? (config.devAuth ? DEV_TOKEN : null);
 }

@@ -2,6 +2,7 @@ name: Deploy to GCP
 
 # Uses Workload Identity Federation (no JSON keys). Configure repo variables:
 #   GCP_PROJECT_ID, GCP_REGION, GCP_WIF_PROVIDER, GCP_DEPLOY_SA, WEB_BUCKET, API_BASE_URL, RAZORPAY_KEY_ID
+#   DEV_AUTH (optional, demo deploys only)
 
 on:
   push:
@@ -54,6 +55,7 @@ jobs:
         env:
           EXPO_PUBLIC_API_BASE_URL: ${{ vars.API_BASE_URL }}
           EXPO_PUBLIC_RAZORPAY_KEY_ID: ${{ vars.RAZORPAY_KEY_ID }}
+          EXPO_PUBLIC_DEV_AUTH: ${{ vars.DEV_AUTH }} # "true" only while the API runs with DEV_AUTH
       - uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}

@@ -13,6 +13,7 @@
     "app:web": "npm --workspace apps/mobile run web",
     "app:android": "npm --workspace apps/mobile run android",
     "api:dev": "npm --workspace services/api run dev",
+    "local:media": "node scripts/local-media.mjs",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present"
   },

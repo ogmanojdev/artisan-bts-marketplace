@@ -47,6 +47,16 @@ variable "razorpay_key_id" {
   default = ""
 }
 
+variable "dev_auth" {
+  type        = bool
+  default     = false
+  description = <<-EOT
+    Demo deploys only: the API accepts "Bearer dev:<uid>:<role>" tokens in place of
+    Identity Platform ID tokens, so the app works before sign-in is built. Anyone who
+    knows the API URL can then create listings and orders. Keep false in production.
+  EOT
+}
+
 variable "db_tier" {
   type    = string
   default = "db-custom-1-3840"

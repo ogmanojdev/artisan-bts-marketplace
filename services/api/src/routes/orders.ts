@@ -90,4 +90,19 @@ export async function orderRoutes(app: FastifyInstance) {
     };
     return view;
   });
+
+  /**
+   * Local only: stands in for the Razorpay `payment.captured` webhook, which can't reach
+   * localhost. Only exists with DEV_AUTH on and no Razorpay keys configured.
+   */
+  if (env.DEV_AUTH === "true" && !env.RAZORPAY_KEY_ID) {
+    app.post<{ Params: { id: string } }>("/v1/dev/orders/:id/pay", { preHandler: requireUser() }, async (req, reply) => {
+      const { rowCount } = await pool.query(
+        `UPDATE orders SET status = 'PLACED', provider_payment_id = 'pay_dev', placed_at = now()
+         WHERE id = $1 AND buyer_id = $2 AND status = 'PENDING_PAYMENT'`,
+        [req.params.id, req.user!.uid],
+      );
+      return reply.code(rowCount ? 204 : 404).send();
+    });
+  }
 }

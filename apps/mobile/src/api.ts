@@ -64,6 +64,15 @@ export const api = {
   order(id: string) {
     return request(`/v1/orders/${id}`, OrderView);
   },
+  /** Local only: the API confirms the order itself when it runs without Razorpay keys. */
+  async devPay(orderId: string) {
+    const token = await getIdToken();
+    const res = await fetch(`${config.apiBaseUrl}/v1/dev/orders/${orderId}/pay`, {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) throw new ApiError(res.status, res.statusText);
+  },
 };
 
 export { ApiError };

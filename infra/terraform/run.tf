@@ -70,6 +70,10 @@ resource "google_cloud_run_v2_service" "api" {
         value = google_service_account.internal_invoker.email
       }
       env {
+        name  = "DEV_AUTH"
+        value = tostring(var.dev_auth)
+      }
+      env {
         name = "DATABASE_URL"
         value_source {
           secret_key_ref {

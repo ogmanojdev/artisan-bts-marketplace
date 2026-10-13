@@ -16,3 +16,4 @@ coverage/
 *.tfvars
 !*.tfvars.example
 .DS_Store
+.local/

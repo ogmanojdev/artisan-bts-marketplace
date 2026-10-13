@@ -1,5 +1,6 @@
 /** Web: Razorpay Checkout.js, loaded lazily so it never costs bytes on browse-only visits. */
 import type { CreateOrderResponse } from "@artisan/shared";
+import { devPay, isDevOrder } from "./devPay";
 
 declare global {
   interface Window {
@@ -19,6 +20,7 @@ function loadScript(): Promise<void> {
 }
 
 export async function pay(order: CreateOrderResponse, description: string): Promise<"submitted" | "dismissed"> {
+  if (isDevOrder(order)) return devPay(order);
   await loadScript();
   return new Promise((resolve) => {
     const rzp = new window.Razorpay!({
