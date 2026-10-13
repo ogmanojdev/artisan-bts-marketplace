@@ -37,8 +37,8 @@
       "typedRoutes": true
     },
     "extra": {
-      "apiBaseUrl": "http://localhost:8080",
-      "razorpayKeyId": "rzp_test_replace_me"
+      "apiBaseUrl": "https://artisan-api-54imdzll3a-el.a.run.app",
+      "razorpayKeyId": "rzp_test_TnGXsHCeOuHDPc"
     }
   }
 }
