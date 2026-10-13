@@ -129,7 +129,10 @@ async function packageRenditions(
     "--segment_duration", String(SEGMENT_SECONDS),
     "--hls_playlist_type", "VOD",
     "--hls_master_playlist_output", join(out, "master.m3u8"),
-    ...(opts.dash ? ["--mpd_output", join(out, "manifest.mpd")] : []),
+    // Without this, Packager's default DASH profile is "live": type="dynamic" with a
+    // minimumUpdatePeriod, so players keep polling the manifest and compute segment
+    // availability against wall-clock time — wrong for finished VOD content like this.
+    ...(opts.dash ? ["--mpd_output", join(out, "manifest.mpd"), "--generate_static_live_mpd"] : []),
   ]);
 }
 
