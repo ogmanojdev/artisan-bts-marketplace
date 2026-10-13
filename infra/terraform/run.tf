@@ -1,8 +1,9 @@
 # ---------- API (Cloud Run service) ----------
 resource "google_cloud_run_v2_service" "api" {
-  name     = "${var.prefix}-api"
-  location = var.region
-  ingress  = "INGRESS_TRAFFIC_ALL" # LB for clients; Pub/Sub/Scheduler call run.app with OIDC
+  name                = "${var.prefix}-api"
+  location            = var.region
+  ingress             = "INGRESS_TRAFFIC_ALL" # LB for clients; Pub/Sub/Scheduler call run.app with OIDC
+  deletion_protection = false                 # demo/dev deploy: keep teardown (terraform destroy) simple
 
   template {
     service_account = google_service_account.api.email
