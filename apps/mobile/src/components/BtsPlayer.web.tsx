@@ -34,9 +34,17 @@ export function BtsPlayer({ hlsUrl, dashUrl, posterUrl, title, audioOnly }: BtsP
 
       player = new shaka.Player();
 
+      // Shaka's defaults give up on a request whose headers take over 10 s and try the manifest
+      // only twice; at 50 kbps a 20 KB manifest behind a TLS handshake can exceed that.
+      const patientRetries = { maxAttempts: 8, baseDelay: 500, backoffFactor: 2, fuzzFactor: 0.5, timeout: 60_000, connectionTimeout: 30_000, stallTimeout: 30_000 };
+
       player.configure({
+        manifest: { retryParameters: patientRetries },
         abr: {
           enabled: true,
+          // Otherwise Shaka seeds its estimate from navigator.connection.downlink, which reports
+          // the device's last good link (e.g. 1.5 Mbps) and starts a slow connection on 720p.
+          useNetworkInformation: false,
           defaultBandwidthEstimate: 40_000,
           switchInterval: 4,
           bandwidthUpgradeTarget: 0.7,
@@ -46,7 +54,7 @@ export function BtsPlayer({ hlsUrl, dashUrl, posterUrl, title, audioOnly }: BtsP
           bufferingGoal: 60,
           rebufferingGoal: 2,
           bufferBehind: 10,
-          retryParameters: { maxAttempts: 8, baseDelay: 500, backoffFactor: 2, fuzzFactor: 0.5, timeout: 30_000 },
+          retryParameters: patientRetries,
         },
         preferredVideoCodecs: ["av01", "avc1"],
         preferredAudioCodecs: ["opus", "mp4a"],

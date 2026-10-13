@@ -31,7 +31,8 @@ const arg = (name, fallback) => {
 };
 const PORT = arg("port", 8888);
 const LIMIT_KBPS = arg("kbps", 48);
-const TICK_MS = 100;
+/** Short ticks keep delivery even: the per-second reading then stays within ~1 kbps of the cap. */
+const TICK_MS = 20;
 /** Just past a TLS handshake (~2.5-3 KB observed with GCS's cert chain) — not large enough to
  *  exempt real payload too, or the cap would stop meaning anything for small segments/responses. */
 const FAST_LANE_BYTES = 4 * 1024;
@@ -40,6 +41,11 @@ const LOG_FILE = process.argv.includes("--log") ? process.argv[process.argv.inde
 
 let capped = true;
 let sentThisSecond = 0;
+let lastTick = performance.now();
+/** Unspent budget carried over from the previous tick (at most one tick's worth). */
+let carry = 0;
+/** Fast-lane bytes sent while capped that the capped budget still has to absorb. */
+let debt = 0;
 /** Downstream queues, one per open connection. */
 const flows = new Set();
 
@@ -71,6 +77,7 @@ setInterval(() => {
     f.client.write(head.subarray(0, n));
     f.sent += n;
     sentThisSecond += n;
+    if (capped) debt += n; // borrowed from the capped budget, repaid below
     if (n === head.length) f.chunks.shift();
     else f.chunks[0] = head.subarray(n);
     if (!f.chunks.length) {
@@ -79,7 +86,21 @@ setInterval(() => {
     }
   }
 
-  let budget = capped ? (LIMIT_KBPS * 1000 * TICK_MS) / 8000 : Infinity;
+  // Budget by elapsed time, not per tick: timers fire late (about every 110 ms on Windows), and
+  // a fixed per-tick allowance would then deliver only ~43 kbps of a 48 kbps cap.
+  const now = performance.now();
+  const elapsedMs = Math.min(now - lastTick, 250);
+  lastTick = now;
+  let budget = capped ? carry + (LIMIT_KBPS * 1000 * elapsedMs) / 8000 : Infinity;
+  carry = 0;
+  // Fast-lane bytes went out ahead of the cap; pay them back first, so the average rate still
+  // holds at the cap and only the moment of a handshake shows above it.
+  if (capped) {
+    const repaid = Math.min(debt, budget);
+    debt -= repaid;
+    budget -= repaid;
+  } else debt = 0;
+  const granted = budget;
   const active = [...flows].filter((f) => f.chunks.length && f.sent >= FAST_LANE_BYTES);
   // Round-robin so one segment download can't starve the playlist or API calls.
   while (budget >= 1 && active.length) {
@@ -100,11 +121,20 @@ setInterval(() => {
       }
     }
   }
+  // A flow often runs dry mid-tick (its next chunk arrives a moment later), stranding the rest of
+  // that tick's budget and costing ~10% of the cap. Carry the remainder into the next tick, but
+  // only while the link is in use and never more than one tick's worth, so idle time can't bank
+  // a burst.
+  if (capped && budget < granted) carry = Math.min(budget, (LIMIT_KBPS * 1000 * TICK_MS) / 8000);
   for (const f of flows) if (f.ended && !f.chunks.length) f.client.end();
 }, TICK_MS);
 
+let lastSample = performance.now();
 setInterval(() => {
-  const kbps = (sentThisSecond * 8) / 1000;
+  // Divide by the real window length: a timer that fires late would otherwise overstate the rate.
+  const now = performance.now();
+  const kbps = (sentThisSecond * 8) / (now - lastSample);
+  lastSample = now;
   sentThisSecond = 0;
   if (LOG_FILE) appendFileSync(LOG_FILE, `${JSON.stringify({ t: Date.now(), kbps, capped })}\n`);
   const bar = "#".repeat(Math.min(40, Math.round((kbps / LIMIT_KBPS) * 20)));
