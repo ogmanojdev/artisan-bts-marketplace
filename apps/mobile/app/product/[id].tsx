@@ -53,7 +53,7 @@ export default function ProductScreen() {
           <Text style={styles.by}>Handmade by {p.artisanName}</Text>
           <Text style={styles.price}>{formatMoney(p.price.amountMinor, p.price.currency)}</Text>
           <Link href={{ pathname: "/checkout/[id]", params: { id: p.id } }} asChild disabled={!p.inStock}>
-            <Pressable style={[styles.buy, !p.inStock && { opacity: 0.4 }]} accessibilityRole="button">
+            <Pressable style={StyleSheet.flatten([styles.buy, !p.inStock && { opacity: 0.4 }])} accessibilityRole="button">
               <Text style={styles.buyText}>{p.inStock ? "Buy now" : "Sold out"}</Text>
             </Pressable>
           </Link>
