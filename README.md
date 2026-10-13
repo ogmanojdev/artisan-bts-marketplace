@@ -17,17 +17,99 @@ infra/terraform      All GCP infrastructure (Cloud Run, Cloud SQL, GCS, Pub/Sub,
 
 ## How it works
 
-```
-App (phone / tablet / Chrome)
-  │  HTTPS + HTTP/3
-  ▼
-Global HTTPS LB ──► api.*   → Cloud Run API ─► Cloud SQL (Postgres FTS)
-  (Cloud CDN)   ──► media.* → GCS segments (immutable, edge-cached)
-                ──► app.*   → GCS Expo web build
+At a glance:
 
-Upload:   App ──resumable chunks──► GCS raw bucket ─finalize─► Pub/Sub ─push─► API ─runJob─► Transcoder
-Order:    App ─► API (atomic stock hold) ─► Razorpay ─webhook─► API: PLACED ─► Pub/Sub order-events
+```mermaid
+flowchart LR
+  App[["App<br/>phone · tablet · Chrome"]] -->|browse / buy| API["Cloud Run<br/>API"]
+  App -->|upload video| Storage[("Cloud Storage<br/>raw + media")]
+  App -->|watch HLS| Storage
+  Storage -->|new upload triggers| Transcoder["Cloud Run Job<br/>Transcoder"]
+  Transcoder -->|HLS output| Storage
+  API <--> DB[("Cloud SQL<br/>Postgres")]
+  API <-->|checkout + webhook| RZP(["Razorpay"])
 ```
+
+In full — every service, the upload→transcode trigger chain, and the optional edge tier:
+
+```mermaid
+flowchart LR
+  C[["App<br/>phone · tablet · Chrome"]]
+
+  subgraph EDGE["Optional edge — OFF in this deployment (enable_edge = false)"]
+    LB["Global HTTPS LB<br/>+ HTTP/3"] --> CDN["Cloud CDN"]
+    LB --> ARMOR["Cloud Armor<br/>WAF / rate-limit"]
+    SSL["Managed SSL cert"] -.-> LB
+  end
+
+  subgraph SERVE["Serving — live today, direct Cloud Run / GCS URLs"]
+    API["Cloud Run service<br/>artisan-api"]
+    WEBB[("GCS bucket: artisan-web<br/>static Expo build")]
+    MEDIAB[("GCS bucket: artisan-media<br/>HLS segments, public")]
+  end
+
+  subgraph PIPE["Upload → transcode pipeline"]
+    RAWB[("GCS bucket: artisan-raw<br/>private")]
+    TOPIC{{"Pub/Sub: raw-uploads"}}
+    JOB["Cloud Run Job<br/>artisan-transcoder"]
+  end
+
+  SQL[("Cloud SQL · Postgres<br/>artisan-pg")]
+  SM["Secret Manager"]
+  AR["Artifact Registry"]
+  SCHED["Cloud Scheduler<br/>expire-orders"]
+  RZP(["Razorpay"])
+  GHA["GitHub Actions"]
+
+  C -.->|"would route through LB if enabled"| LB
+  LB -.-> API
+  LB -.-> MEDIAB
+  LB -.-> WEBB
+
+  C -->|"HTTPS, direct today"| API
+  C -->|"HTTPS, direct today"| MEDIAB
+  C -->|"first load"| WEBB
+  C -->|"resumable upload chunks"| RAWB
+
+  RAWB -->|OBJECT_FINALIZE| TOPIC
+  TOPIC -->|push| API
+  API -->|runJob| JOB
+  JOB -->|reads| RAWB
+  JOB -->|writes HLS| MEDIAB
+
+  API <--> SQL
+  API --> SM
+  API -->|checkout| RZP
+  RZP -->|webhook| API
+  SCHED -->|"HTTP trigger, every 5 min"| API
+
+  GHA -->|"build + push, tag = commit SHA"| AR
+  GHA -->|deploy| API
+  GHA -->|deploy| JOB
+  GHA -->|sync| WEBB
+```
+
+**The edge tier (global HTTPS load balancer + Cloud CDN + Cloud Armor + managed SSL) was part of the original design** — `api.*`/`media.*`/`app.*` custom domains in front of everything — and the Terraform for it is still in [`infra/terraform/edge.tf`](infra/terraform/edge.tf), gated behind `var.enable_edge`. It's **off** in this deployment: `enable_edge = false` in `terraform.tfvars` skips the LB's fixed cost (~$25–35/mo) and the DNS-propagation wait for a demo/assignment deployment, and the app reaches the API and buckets directly over their own `*.run.app` / `storage.googleapis.com` HTTPS URLs instead — see the `web_base_url`/`media_base_url` locals in [`infra/terraform/main.tf`](infra/terraform/main.tf). Flip `enable_edge = true`, point the `api`/`media`/`web` DNS records at the `lb_ip` Terraform output, and re-apply to turn it on.
+
+Upload: App ──resumable chunks──► GCS raw bucket ─finalize─► Pub/Sub ─push─► API ─runJob─► Transcoder
+Order: App ─► API (atomic stock hold) ─► Razorpay ─webhook─► API: PLACED ─► Pub/Sub order-events
+
+### What's actually deployed — good for the GCP walkthrough video
+Since the edge tier is off, these are the services to show live to prove "deployed services running the code and handling video transcoding/storage":
+
+| Service | What it does | What to show |
+|---|---|---|
+| Cloud Run → Services | Runs the API container | `artisan-api`, its public URL, and the image tag (commit SHA — ties to the GitHub Actions deploy) |
+| Cloud Run → Jobs | Transcodes each upload | `artisan-transcoder` — open it right after uploading in the demo to show the execution it just ran |
+| Cloud Storage | Raw upload + transcoded output | `...-raw` bucket (your original file, private) and `...-media` bucket (public — the HLS `master.m3u8` + variant playlists + segments it just produced) |
+| Pub/Sub | Event trigger from upload to transcode | `raw-uploads` topic/subscription — the thing that actually fires the transcoder job, not just "a job ran somehow" |
+| Cloud SQL (Postgres) | Listings/orders database | `artisan-pg` instance; the row your demo listing/order just created |
+| Secret Manager | Razorpay keys, DB URL | that the secrets/versions exist (don't reveal values on camera) |
+| Artifact Registry | Docker images for API + transcoder | the `artisan` repo, images tagged by commit SHA |
+| Cloud Scheduler | Releases unpaid stock holds every 5 min | `artisan-expire-orders` job (optional) |
+| IAM → Workload Identity Federation | GitHub Actions deploys via OIDC, no exported SA keys | optional, good for a security/architecture note |
+
+Suggested flow for the recording: upload a video in the app → switch to the console → raw bucket → Pub/Sub topic → the transcoder job's execution → the HLS output landing in the media bucket → back to the app to show it playing. That visually proves the whole storage/transcode chain instead of just naming services.
 
 ### Playback below 50 kbps
 | Rung | Video | + Opus 12 kbps | Measured on a test clip |
