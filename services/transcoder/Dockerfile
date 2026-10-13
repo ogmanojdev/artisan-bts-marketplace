@@ -11,7 +11,9 @@ FROM node:22-trixie-slim
 RUN apt-get update \
  && apt-get install -y --no-install-recommends ffmpeg ca-certificates curl \
  && rm -rf /var/lib/apt/lists/* \
- && ffmpeg -hide_banner -encoders | grep -E "libsvtav1|libopus|libx264|libwebp" | wc -l | grep -q 4
+ && for enc in libsvtav1 libopus libx264 libwebp; do \
+      ffmpeg -hide_banner -encoders | awk '{print $2}' | grep -qx "$enc" || { echo "missing ffmpeg encoder: $enc" >&2; exit 1; }; \
+    done
 
 ARG PACKAGER_VERSION=v3.9.3
 RUN curl -fsSL -o /usr/local/bin/packager \
